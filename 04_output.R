@@ -11,12 +11,12 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 #Output the rasters to the data/spatial directory of the conservation connectivity  repo (BC_ConservationConnectivity)
-writeRaster(resistance_surface, filename=file.path(CorrDir,'resistance_surface.tif'), format="GTiff", overwrite=TRUE)
+writeRaster(e, filename = file.path(CorrDir,'resistance_surface.tif'), overwrite=TRUE)
 
 #writeRaster(roads_W, filename=file.path(CorrDir,'roads_W.tif'), format="GTiff", overwrite=TRUE)
 #writeRaster(disturbance_W, filename=file.path(CorrDir,'disturbance_W.tif'), format="GTiff", overwrite=TRUE)
 
-writeRaster(source_surface, filename=file.path(CorrDir,'source_surface.tif'), format="GTiff", overwrite=TRUE)
+writeRaster(source_surface, filename=file.path(CorrDir,'source_surface.tif'),overwrite=TRUE)
 
 #Plot resistance and source layers
 resistance_surface<-raster(file.path(CorrDir,"resistance_surface.tif"))

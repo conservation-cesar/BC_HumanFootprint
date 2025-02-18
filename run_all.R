@@ -11,6 +11,25 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 source('header.R')
+#The first two config rgee scripts are meant to set up the Google Earth Engine in R,
+#including installing python, locating it,  and setting up authentication
+#Users will need a gmail account to be able to load earth engine.
+#Setting up GEE may require a few restarts of the machine, so users might need to run the 'header.R' script again
+
+#Installing miniconda might be needed before proceeding
+
+reticulate::install_miniconda()
+
+#Miniconda should be in the correct path automatically and following steps should run wihtout major problems
+#This step will also prompt a restart of r session; it is suggested to restart the session
+source('00_rgee_config1.R')
+
+
+#The following produces a Dynamic World map of basic landscape cover that are meant to
+#replace the basic thematic mapping used by the Human Footprint Layer
+#Reload the header.R first after the session re-start
+source('header.R')
+source('00_rgee_config3.R')
 
 #only run load if neccessary - clean
 source("01_load.R")
@@ -23,7 +42,7 @@ AOI <- readRDS('tmp/BC') #Province
 
 #clean will clip to AOI
 source("02_clean_Area.R")
-source("02_clean_Roads.R")
+source("02_clean_Roads.R",catch.aborts = TRUE)
 
 source("03_analysis.R")
 #run it you want to use for doing binary intact lands

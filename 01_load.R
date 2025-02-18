@@ -13,13 +13,13 @@
 #Rasterize the Province for subsequent masking
 # bring in BC boundary
 bc <- bcmaps::bc_bound()
-Prov_crs<-crs(bc)
+Prov_crs<-raster::crs(bc)
 #Prov_crs<-"+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0"
 
 #Provincial Raster to place rasters in the same geo reference
 BCr_file <- file.path(spatialOutDir,"BCr.tif")
 if (!file.exists(BCr_file)) {
-  BC<-bcmaps::bc_bound_hres(class='sf')
+  BC<-bcmaps::bc_bound_hres()
   saveRDS(BC,file='tmp/BC')
   ProvRast<-raster(nrows=15744, ncols=17216, xmn=159587.5, xmx=1881187.5,
                    ymn=173787.5, ymx=1748187.5,
@@ -46,23 +46,31 @@ CE_downloadFn = function(url, file){
   library('RCurl')
   f = CFILE(file, mode="wb")
   a = curlPerform(url = url, writedata = f@ref, noprogress=FALSE)
-  close(f)
+  RCurl::close(f)
   return(a)
 }
 
 rd_file<-'tmp/roads_sf_in'
+
+options(timeout = max(300, getOption("timeout")))#increasing timeout to avoid issues when downloading
+
 if (!file.exists(rd_file)) {
   #Download CE road data
-  CE_downloadFn("https://nrs.objectstore.gov.bc.ca/bsmheo/BC_CEF_Integrated_Roads_2021.gdb.zip",
-                file.path(SpatialDir,"CE_Roads_2021.zip"))
+  # CE_downloadFn("https://coms.api.gov.bc.ca/api/v1/object/1d3d61b0-1f33-4608-837a-ee0b0ac4264e",
+ #               file.path(SpatialDir,"BC_CE_Integrated_Roads_2024.zip"))
+
+
+  download.file("https://coms.api.gov.bc.ca/api/v1/object/1d3d61b0-1f33-4608-837a-ee0b0ac4264e",
+                file.path(SpatialDir,"BC_CE_Integrated_Roads_2024.zip"),mode="wb")
+
   #Unzip and put gdb in local SpatialDir
-  unzip(file.path(SpatialDir,"CE_Roads_2021.zip"), exdir = SpatialDir)
+  unzip(file.path(SpatialDir,"BC_CE_Integrated_Roads_2024.zip"), exdir = SpatialDir)
 
   #Read gdb and select layer for sf_read
-  Roads_gdb <- list.files(file.path(SpatialDir), pattern = "_Roads_", full.names = TRUE)[1]
+  Roads_gdb <- list.files(file.path(SpatialDir,"BC_CE_Integrated_Roads_2024"), pattern = "_Roads_", full.names = TRUE)[1]
   st_layers(file.path(Roads_gdb))
 
-  roads_sf_in <- read_sf(Roads_gdb, layer = "integrated_roads_2021")
+  roads_sf_in <- read_sf(Roads_gdb, layer = "integrated_roads_2024")
   saveRDS(roads_sf_in,file=rd_file)
 } else {
   roads_sf_in<-readRDS(file=rd_file)
@@ -73,16 +81,21 @@ if (!file.exists(rd_file)) {
 dist_file<-'tmp/disturbance_sf'
 if (!file.exists(dist_file)) {
   #Download CE disturbance data
-  CE_downloadFn("https://nrs.objectstore.gov.bc.ca/bsmheo/BC_CEF_Human_Disturbance_2021.gdb.zip",
-                                  file.path(SpatialDir,"CE_Disturb_2021.zip"))
+  # CE_downloadFn("https://nrs.objectstore.gov.bc.ca/bsmheo/BC_CEF_Human_Disturbance_2021.gdb.zip",
+  #                                 file.path(SpatialDir,"CE_Disturb_2021.zip"))
+  #
+  download.file( "https://coms.api.gov.bc.ca/api/v1/object/ecea4b04-055a-49d1-8910-60d726d2d1bf",
+                file.path(SpatialDir,"BC_CEF_Human_Disturbance_2023.zip"),mode="wb")
+
   #Unzip and put gdb in local SpatialDir
-  unzip(file.path(SpatialDir,"CE_Disturb_2021.zip"), exdir = SpatialDir)
+
+  unzip(file.path(SpatialDir,"BC_CEF_Human_Disturbance_2023.zip"), exdir = SpatialDir)
 
   #Read gdb and select layer for sf_read
-  disturbance_gdb <- list.files(file.path(SpatialDir), pattern = "_Disturbance_", full.names = TRUE)[1]
-  st_layers(BC_CEF_Human_Disturbance_2021.gdb)
+  disturbance_gdb <- list.files(file.path(SpatialDir,'BC_CEF_Human_Disturbance_2023'), pattern = "_Disturbance_", full.names = TRUE)[1]
+  st_layers(disturbance_gdb)
 
-  disturbance_sf <- read_sf(BC_CEF_Human_Disturbance_2021.gdb, layer = "BC_CEF_Human_Disturb_BTM_2021_merge")
+  disturbance_sf <- read_sf(disturbance_gdb, layer = "BC_CEF_Human_Disturb_BTM_2023")
   saveRDS(disturbance_sf,file=dist_file)
   disturbance_sf<-readRDS(file=dist_file)
   #Fasterize disturbance subgroup
@@ -110,7 +123,7 @@ if (!file.exists(dist_file)) {
   #Write out LUT and populate with resistance weights and source scores
   WriteXLS(AreaDisturbance_LUT,file.path(DataDir,'AreaDisturbance_LUT.xlsx'))
 
-AreaDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,'AreaDisturbance_LUT.xlsx'))) %>%
+AreaDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,'AreaDisturbance_LUT_lookup.xlsx'))) %>%
     dplyr::select(disturb,ID=disturb_Code,Resistance,SourceWt, BinaryHF)
 
   disturbance_sfR1 <- disturbance_sf %>%
@@ -137,7 +150,7 @@ EcoS<-bcmaps::ecosections()
 EcoRegions<-bcmaps::ecoregions()
 
 #Watersheds
-ws <- get_layer("wsc_drainages", class = "sf") %>%
+ws <- get_layer("wsc_drainages") %>%
   dplyr::select(SUB_DRAINAGE_AREA_NAME, SUB_SUB_DRAINAGE_AREA_NAME) %>%
   dplyr::filter(SUB_DRAINAGE_AREA_NAME %in% c("Nechako", "Skeena - Coast"))
 st_crs(ws)<-3005

@@ -104,14 +104,20 @@ if (!file.exists(roads_file)) {
 #Example in data directory Archive folder
 LinearDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,paste('LinearDisturbance.xlsx',sep='')),sheet='LinearDisturbance')) %>%
   dplyr::select(ID,Resistance,SourceWt,BinaryHF)
+LinearDisturbance_LUT<-data.frame(rdCode=c(1,2,3,0),Resistance=c(400,100,3,0),BinaryHF=c(1,1,1,0))
+
+roads_WP_file <- file.path(spatialOutDir,"roads_WP.tif")
+if (!file.exists(roads_WP_file)) {
 
 #By Prov
-roads_WP<-subs(roadsR, LinearDisturbance_LUT, by='ID',which='Resistance')
+roads_WP<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='Resistance')
 writeRaster(roads_WP, filename=file.path(spatialOutDir,'roads_WP'), format="GTiff", overwrite=TRUE)
 #Do Binary version
-roadsB_W<-subs(roadsR, LinearDisturbance_LUT, by='ID',which='BinaryHF')
+roadsB_W<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='BinaryHF')
 writeRaster(roadsB_W, filename=file.path(spatialOutDir,'roadsB_W'), format="GTiff", overwrite=TRUE)
-
+}else{
+  roads_WP<-raster(file.path(spatialOutDir,'roads_WP.tif'))
+}
 #########
 #Do similar analysis but split into 3 rasters, High(1), Med(2), Low(3)
 #Generate buffers for each 500m for 1 100m annd 500m for 2 and 50m for 3
@@ -179,13 +185,17 @@ roadsLR[roadsLR==3]<-1
 writeRaster(roadsLR, filename=file.path(spatialOutDir,'roadsLR'), format="GTiff", overwrite=TRUE)
 
 ##############
+AOI_rast<-terra::rast(file.path(spatialOutDir,"BCr.tif"))
+
+roadsR_AOI<-terra::rast(file.path(spatialOutDir,"roadsSR.tif")) %>%
+  #crop(AOI) %>%
+  terra::mask(AOI_rast)
+
 #Clip by AOI
-roadsR_AOI<-roadsR %>%
-  mask(AOI) %>%
-  crop(AOI)
-#roads_LUT<-data.frame(rdCode=c(1,2,3),weights=c(400,100,3))
-roads_W<-subs(roadsR_AOI, LinearDisturbance_LUT, by='ID',which='Resistance')
-writeRaster(roads_W, filename=file.path(spatialOutDir,'roads_W'), format="GTiff", overwrite=TRUE)
-
-
-
+# roadsR_AOI<-roadsR %>%
+#   mask(AOI) %>%
+#   crop(AOI)
+#roads_LUT<-data.frame(rdCode=c(1,2,3),Resistance=c(400,100,3))
+roads_W<-terra::subst(roadsR_AOI, from=LinearDisturbance_LUT$rdCode,
+                      to=LinearDisturbance_LUT$Resistance,
+filename=file.path(spatialOutDir,'roads_W.tif'), overwrite=TRUE)

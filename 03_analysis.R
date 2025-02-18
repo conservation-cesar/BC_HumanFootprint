@@ -18,18 +18,22 @@ disturbanceB_WP<-raster(file.path(spatialOutDir,'disturbanceB_WP.tif'))
 #Combine roads and disturbance areas - assign max weight to pixel
 disturbanceStack<-stack(roads_WP,disturbance_WP)
 resistance_surface_WP<-max(disturbanceStack,na.rm=TRUE)
+
+#saving
+resistance_surface_WP<-writeRaster(resistance_surface_WP,file.path(spatialOutDir,'resistance_surface_WP.tif'),overwrite=T)
 saveRDS(resistance_surface_WP,file='tmp/resistance_surface_WP')
+resistance_surface_WP<-readRDS('tmp/resistance_surface_WP')
 
 #Assign source_surface
-source_surface<-raster(file.path(spatialOutDir,'source_WP.tif'))
 
 #Make binary HF
 #Buffer roads by 500m
-roadsB_W<-raster(file.path(spatialOutDir,'roadsB_W.tif'))
+roadsB_W<-terra::rast(file.path(spatialOutDir,'roadsB_W.tif'))
 roadsB_W[roadsB_W == 0] <- NA
 #writeRaster(roadsB_W, filename=file.path(spatialOutDir,'roadsB_W'), format="GTiff", overwrite=TRUE)
-roadsB_buff <- buffer(roadsB_W, width=500)
-writeRaster(roadsB_buff, filename=file.path(spatialOutDir,'roadsB_buff.tif'), format="GTiff", overwrite=TRUE)
+roadsB_buff <- terra::buffer(roadsB_W, width=500)
+terra::writeRaster(roadsB_buff, filename=file.path(spatialOutDir,'roadsB_buff.tif'),overwrite=TRUE)
+roadsB_buff<-rast(file.path(spatialOutDir,'roadsB_buff.tif'))
 
 roadsB_W_S <- read_stars(file.path(spatialOutDir,'roadsB_W.tif'))
 roadsB_W_S_sf<-st_as_sf(roadsB_W_S, as_points=FALSE, na.rm=TRUE)
@@ -51,13 +55,19 @@ HumanFP_Binary<-max(HumanFPStack,na.rm=TRUE)
 writeRaster(HumanFP_Binary, filename=file.path(spatialOutDir,'HumanFP_Binary.tif'), format="GTiff", overwrite=TRUE)
 
 #########
-resistance_surface<-resistance_surface_WP %>%
-  mask(AOI) %>%
-  crop(AOI)
+resistance_surface<-terra::rast(file.path(spatialOutDir,"resistance_surface_WP.tif")) %>%
+  #mask(AOI) %>%
+  terra::mask(terra::rast(file.path(spatialOutDir,"BCr.tif")))
+
+
+#Omniscape does not accept resistance values of zero or less
+#need to reclassify raster to have a minimum value of 1
+resistance_surface<-
+  terra::classify(resistance_surface,matrix(c(0,1),ncol=2,byrow = T))
 
 #Assign source_surface
-source_surface<-source_WP %>%
-  mask(AOI) %>%
-  crop(AOI)
+source_surface<-terra::rast(file.path(spatialOutDir,"source_WP.tif")) %>%
+  #mask(AOI) %>%
+  terra::mask(terra::rast(file.path(spatialOutDir,"BCr.tif")))
 
 
