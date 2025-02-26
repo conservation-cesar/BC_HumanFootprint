@@ -76,6 +76,8 @@ if (!file.exists(rd_file)) {
   roads_sf_in<-readRDS(file=rd_file)
 }
 
+
+
 #Provincial Human Disturbance Layers - compiled for CE
 #Needs refinement to differentiate rural/urban and old vs young cutblocks, rangeland, etc.
 dist_file<-'tmp/disturbance_sf'
@@ -96,8 +98,7 @@ if (!file.exists(dist_file)) {
   st_layers(disturbance_gdb)
 
   disturbance_sf <- read_sf(disturbance_gdb, layer = "BC_CEF_Human_Disturb_BTM_2023")
-  saveRDS(disturbance_sf,file=dist_file)
-  disturbance_sf<-readRDS(file=dist_file)
+
   #Fasterize disturbance subgroup
   disturbance_Tbl <- st_set_geometry(disturbance_sf, NULL) %>%
     count(CEF_DISTURB_SUB_GROUP, CEF_DISTURB_GROUP)
@@ -112,6 +113,9 @@ if (!file.exists(dist_file)) {
                                  (CEF_DISTURB_GROUP == 'Cutblocks' & CEF_DISTURB_SUB_GROUP == 'Historic BTM') ~ 'Cutblocks_Historic',
                                   TRUE ~ 'Unkown'))
 
+  saveRDS(disturbance_sf,file=dist_file)
+  disturbance_sf<-readRDS(file=dist_file)
+
    disturbance_Tbl <- st_set_geometry(disturbance_sf, NULL) %>%
     count(CEF_DISTURB_SUB_GROUP, CEF_DISTURB_GROUP, disturb)
   WriteXLS(disturbance_Tbl,file.path(DataDir,'disturbance_Tbl.xlsx'))
@@ -123,12 +127,45 @@ if (!file.exists(dist_file)) {
   #Write out LUT and populate with resistance weights and source scores
   WriteXLS(AreaDisturbance_LUT,file.path(DataDir,'AreaDisturbance_LUT.xlsx'))
 
+#Or use the following table.
+#weights can be adjusted according to the needs of the reader.
+  AreaDisturbance_LUT_lookup<-read.table(text=
+               "disturb_Code	Resistance	SourceWt	BinaryHF	disturb
+1	2	1	0	BTM - Alpine SubAlpine Barren
+2	1	1	0	BTM - Forest Land
+3	4	0	1	BTM - Fresh Water
+4	32	0.5	1	BTM - Range Lands
+5	1	1	0	BTM - Shrubs
+6	1	1	0	BTM - Wetlands Estuaries
+7	1	1	0	RESULTS_Reserves
+8	64	0.25	1	Agriculture_and_Clearing
+9	64	0.25	1	Cutblocks_Current
+10	2	1	1	Cutblocks_Historic
+11	81	0.2	1	Recreation
+12	1000	0	1	Urban
+13	16	0.3	1	ROW
+14	25	0.4	1	Power
+15	9	0.75	1	OGC_Infrastructure
+16	25	0	1	Rail_and_Infrastructure
+17	1000	0	1	Mining_and_Extraction
+18	4	0.25	1	BTM - Glaciers and Snow
+19	4	0	1	BTM - Salt Water
+20	3	0.75	1	OGC_Geophysical",header=T,sep="\t")
+
+
+  WriteXLS(AreaDisturbance_LUT_lookup,
+           file.path(DataDir,'AreaDisturbance_LUT_lookup.xlsx'))
+
+
+
 AreaDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,'AreaDisturbance_LUT_lookup.xlsx'))) %>%
     dplyr::select(disturb,ID=disturb_Code,Resistance,SourceWt, BinaryHF)
 
   disturbance_sfR1 <- disturbance_sf %>%
     left_join(AreaDisturbance_LUT) %>%
     st_cast("MULTIPOLYGON")
+
+  saveRDS(disturbance_sfR1,file='tmp/disturbance_sfR1')
 
   disturbance_sfR<- fasterize(disturbance_sfR1, BCr, field="ID")
 
@@ -141,16 +178,47 @@ AreaDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,'AreaDisturbance_LU
 }
 
 
+rd_file<-'tmp/cblock_sf_in'
+
+if (!file.exists(rd_file)) {
+  #Download Consolidated Cutblocks
+
+  download.file("https://www.for.gov.bc.ca/ftp/HTS/external/!publish/DataCatalogue_FAIB_Data/consolidated_cutblocks/Consolidated_Cut_Block.zip",
+                file.path(SpatialDir,"Consolidated_Cut_Block.zip"),mode="wb")
+
+  #Unzip and put gdb in local SpatialDir
+  unzip(file.path(SpatialDir,"Consolidated_Cut_Block.zip"), exdir = SpatialDir)
+
+  #Read gdb and select layer for sf_read
+  Cblock_gdb <- file.path(SpatialDir,"Consolidated_Cut_Block.gdb")
+  st_layers(Cblock_gdb)
+
+  cblock_sf_in <- read_sf(Cblock_gdb, layer = "Cut_Block_all_BC")
+  saveRDS(cblock_sf_in,file=rd_file)
+  cblock_sf_in<-readRDS(file=rd_file)
+
+  #fasterize for merging later with disturbance layer
+  cblock_sf_raster<-fasterize(cblock_sf_in, BCr, field="HARVEST_START_YEAR_CALENDAR",fun='max')
+  saveRDS(cblock_sf_raster,file='tmp/cblock_sf_raster')
+  writeRaster(cblock_sf_raster, filename=file.path(spatialOutDir,'cblock_sf_raster'), format="GTiff", overwrite=TRUE)
+
+
+} else {
+  cblock_sf_raster<-readRDS(file="tmp/cblock_sf_raster")
+}
+
+
+
 ##########################
 #Layers for doing AOI for testing and printing
 
-EcoS<-bcmaps::ecosections()
+EcoS<-bcmaps::ecosections(ask=F)
 
 #EcoRegions
-EcoRegions<-bcmaps::ecoregions()
+EcoRegions<-bcmaps::ecoregions(ask=F)
 
 #Watersheds
-ws <- get_layer("wsc_drainages") %>%
+ws <- get_layer("wsc_drainages",ask=F) %>%
   dplyr::select(SUB_DRAINAGE_AREA_NAME, SUB_SUB_DRAINAGE_AREA_NAME) %>%
   dplyr::filter(SUB_DRAINAGE_AREA_NAME %in% c("Nechako", "Skeena - Coast"))
 st_crs(ws)<-3005

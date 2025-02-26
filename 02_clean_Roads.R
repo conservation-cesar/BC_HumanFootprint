@@ -20,16 +20,16 @@ if (!file.exists(roads_file)) {
   unique(roads_sf_in$OG_DEV_PRE06_PETRLM_DEVELOPMENT_ROAD_TYPE)
 
 
-### Check Petro roads
-#Appears petro roads are typed with SURFACE and CLASSS
+  ### Check Petro roads
+  #Appears petro roads are typed with SURFACE and CLASSS
   table(roads_sf_in$DRA_ROAD_SURFACE,roads_sf_in$OG_DEV_PRE06_PETRLM_DEVELOPMENT_ROAD_TYPE)
   table(roads_sf_in$DRA_ROAD_CLASS,roads_sf_in$OG_DEV_PRE06_PETRLM_DEVELOPMENT_ROAD_TYPE)
 
-#Additional petro road checks
+  #Additional petro road checks
   #Check if all petro roads have a OG_DEV_PRE06_PETRLM_DEVELOPMENT_ROAD_TYPE
- tt<-roads_sf_in %>%
-  st_drop_geometry() %>%
-  dplyr::filter(is.na(DRA_ROAD_CLASS))
+  tt<-roads_sf_in %>%
+    st_drop_geometry() %>%
+    dplyr::filter(is.na(DRA_ROAD_CLASS))
 
   Petro_Tbl <- st_set_geometry(roads_sf_in, NULL) %>%
     count(OG_DEV_PRE06_PETRLM_DEVELOPMENT_ROAD_TYPE, LENGTH_METRES)
@@ -40,9 +40,9 @@ if (!file.exists(roads_file)) {
 
   Petro_Tbl <- st_set_geometry(roads_sf_petro, NULL) %>%
     dplyr::count(DRA_ROAD_SURFACE, DRA_ROAD_CLASS)
-#### End Petro road check
+  #### End Petro road check
 
-#Eliminate non-roads
+  #Eliminate non-roads
   notRoadsCls <- c("ferry", "water", "Road Proposed")
   notRoadsSurf<-c("boat")
 
@@ -54,7 +54,7 @@ if (!file.exists(roads_file)) {
                 "Road collector major","Road collector minor","Road ramp","Road freeway",
                 "Road yield lane")
 
-   ModUseCls<-c("Road local","Road recreation","Road alleyway","Road restricted",
+  ModUseCls<-c("Road local","Road recreation","Road alleyway","Road restricted",
                "Road service","Road resource","Road driveway","Road strata",
                "Road resource demographic", "Road strata","Road recreation demographic", "Trail Recreation",
                "Road runway", "Road runway non-demographic", "Road resource non-status" )
@@ -106,15 +106,36 @@ LinearDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,paste('LinearDist
   dplyr::select(ID,Resistance,SourceWt,BinaryHF)
 LinearDisturbance_LUT<-data.frame(rdCode=c(1,2,3,0),Resistance=c(400,100,3,0),BinaryHF=c(1,1,1,0))
 
+
+####Buffering Roads####
+#get each use level in a different raster:
+roadsR_l<-list()
+for(i in 1:3){
+  roadsR_l[[i]]<-terra::mask(roadsR,
+            roadsR,
+            inverse=T,
+            maskvalue=i)
+  }
+
+#buffer each type
+#500m for 1; 100m and 500m for 2 and 50m for 3
+roadsR_l_h<-buffer(roadsR_l[[1]],width=500,background=NA)#high use
+roadsR_l_m1<-buffer(roadsR_l[[2]],width=500,background=NA)#moderate
+roadsR_l_m2<-buffer(roadsR_l[[2]],width=100,background=NA)#moderate
+roadsR_l_l<-buffer(roadsR_l[[3]],width=50,background=NA)#low use
+
+
+
+
 roads_WP_file <- file.path(spatialOutDir,"roads_WP.tif")
 if (!file.exists(roads_WP_file)) {
 
-#By Prov
-roads_WP<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='Resistance')
-writeRaster(roads_WP, filename=file.path(spatialOutDir,'roads_WP'), format="GTiff", overwrite=TRUE)
-#Do Binary version
-roadsB_W<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='BinaryHF')
-writeRaster(roadsB_W, filename=file.path(spatialOutDir,'roadsB_W'), format="GTiff", overwrite=TRUE)
+  #By Prov
+  roads_WP<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='Resistance')
+  writeRaster(roads_WP, filename=file.path(spatialOutDir,'roads_WP'), format="GTiff", overwrite=TRUE)
+  #Do Binary version
+  roadsB_W<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='BinaryHF')
+  writeRaster(roadsB_W, filename=file.path(spatialOutDir,'roadsB_W'), format="GTiff", overwrite=TRUE)
 }else{
   roads_WP<-raster(file.path(spatialOutDir,'roads_WP.tif'))
 }
@@ -198,4 +219,4 @@ roadsR_AOI<-terra::rast(file.path(spatialOutDir,"roadsSR.tif")) %>%
 #roads_LUT<-data.frame(rdCode=c(1,2,3),Resistance=c(400,100,3))
 roads_W<-terra::subst(roadsR_AOI, from=LinearDisturbance_LUT$rdCode,
                       to=LinearDisturbance_LUT$Resistance,
-filename=file.path(spatialOutDir,'roads_W.tif'), overwrite=TRUE)
+                      filename=file.path(spatialOutDir,'roads_W.tif'), overwrite=TRUE)
