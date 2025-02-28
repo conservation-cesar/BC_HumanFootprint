@@ -29,8 +29,9 @@ source("02_clean_Cutblocks_and_Water.R")
 source("02_clean_Roads.R",catch.aborts = TRUE)
 
 source("03_analysis.R")
-#run it you want to use for doing binary intact lands
-source("03_analysis_BinaryIntact.R")
+##run it you want to use for doing binary intact lands
+##Not explored at the moment
+#source("03_analysis_BinaryIntact.R")
 
 source("04_output.R")
 

@@ -43,14 +43,14 @@ AreaDisturbance_LUT_cblock_reclass<-AreaDisturbance_LUT_cblock %>% dplyr::select
 #Provincial weights
 cblock_sf_raster_WP_file <- file.path(spatialOutDir,"cblock_sf_raster_WP.tif")
 if (!file.exists(cblock_sf_raster_WP_file)) {
-  cblock_sf_raster_WP<-reclassify(raster(file.path(spatialOutDir,'cblock_sf_raster.tif')),
+  cblock_sf_raster_WP<-classify(rast(file.path(spatialOutDir,'cblock_sf_raster.tif')),
                                   rcl=AreaDisturbance_LUT_cblock_reclass,
                                   include.lowest=T)
 
   writeRaster(cblock_sf_raster_WP, filename=file.path(spatialOutDir,'cblock_sf_raster_WP'), format="GTiff", overwrite=TRUE)
 
  }else{
-   cblock_sf_raster_WP<-raster(file.path(spatialOutDir,'cblock_sf_raster_WP.tif'))
+   cblock_sf_raster_WP<-rast(file.path(spatialOutDir,'cblock_sf_raster_WP.tif'))
  }
 
 
@@ -66,12 +66,12 @@ source_cutblock_file <- file.path(spatialOutDir,"source_cutblock.tif")
 
 if (!file.exists(source_cutblock_file)) {
 
-  source_cutblock<-reclassify(raster(file.path(spatialOutDir,'cblock_sf_raster.tif')),
+  source_cutblock<-classify(rast(file.path(spatialOutDir,'cblock_sf_raster.tif')),
                         rcl=AreaSource_LUT_cblock_reclass)
-writeRaster(source_cutblock, filename=file.path(spatialOutDir,'source_cutblock'), format="GTiff", overwrite=TRUE)
+writeRaster(source_cutblock, file.path(spatialOutDir,"source_cutblock.tif"), overwrite=TRUE)
 
 }else{
-  source_cutblock<-raster(file.path(spatialOutDir,'source_cutblock.tif'))
+  source_cutblock<-rast(file.path(spatialOutDir,'source_cutblock.tif'))
 }
 
 ##################
@@ -83,9 +83,9 @@ writeRaster(source_cutblock, filename=file.path(spatialOutDir,'source_cutblock')
 water_file<-file.path(spatialOutDir,'water_buffered.tif')
 
 water_resistance_wgt<-data.frame(
-  water_class=c(3.1,3.2,3.3,3.4,3.5),
-  Resistance=c(4,3,2,1,0.5)
-) %>% as.matrix()
+  water_class=c(3,100,200,300,400,500),
+  Resistance=c(4,3,3,2,2,1)
+)
 
 if (!file.exists(water_file)) {
 
@@ -106,11 +106,11 @@ water_bf400<-buffer(water_r,width=400,background=NA)
 water_bf500<-buffer(water_r,width=500,background=NA)
 
 #Rreclasfiying each portion of the buffer for easy identification and classification for resistance weighting
-water_bf100<-classify(water_bf100,matrix(data=c(0,1,3.1),ncol=3),include.lowest=T,others=NA)
-water_bf200<-classify(water_bf200,matrix(data=c(0,1,3.2),ncol=3),include.lowest=T,others=NA)
-water_bf300<-classify(water_bf300,matrix(data=c(0,1,3.3),ncol=3),include.lowest=T,others=NA)
-water_bf400<-classify(water_bf400,matrix(data=c(0,1,3.4),ncol=3),include.lowest=T,others=NA)
-water_bf500<-classify(water_bf500,matrix(data=c(0,1,3.5),ncol=3),include.lowest=T,others=NA)
+water_bf100<-classify(water_bf100,matrix(data=c(0,1,100),ncol=3),include.lowest=T,others=NA)
+water_bf200<-classify(water_bf200,matrix(data=c(0,1,200),ncol=3),include.lowest=T,others=NA)
+water_bf300<-classify(water_bf300,matrix(data=c(0,1,300),ncol=3),include.lowest=T,others=NA)
+water_bf400<-classify(water_bf400,matrix(data=c(0,1,400),ncol=3),include.lowest=T,others=NA)
+water_bf500<-classify(water_bf500,matrix(data=c(0,1,500),ncol=3),include.lowest=T,others=NA)
 
 
 #Saving for later:
@@ -127,32 +127,51 @@ writeRaster(water_bf500,
             filename=file.path(spatialOutDir,'water_bf500.tif'), overwrite=TRUE)
 
 
-water_buffered<-do.call(mosaic,
-                    list(water_bf100,
+water_bf100<-rast(file.path(spatialOutDir,'water_bf100.tif'))
+water_bf200<-rast(file.path(spatialOutDir,'water_bf200.tif'))
+water_bf300<-rast(file.path(spatialOutDir,'water_bf300.tif'))
+water_bf400<-rast(file.path(spatialOutDir,'water_bf400.tif'))
+water_bf500<-rast(file.path(spatialOutDir,'water_bf500.tif'))
+
+
+water_buffered<-mosaic(water_r,
+                    water_bf100,
                     water_bf200,
                     water_bf300,
                     water_bf400,
-                    water_bf500,fun=min))
+                    water_bf500,fun=min)
 
 
 water_buffered<-classify(
   water_buffered,
-  rcl=water_resistance_wgt
-)
+  water_resistance_wgt
+  )
 
 
 writeRaster(water_buffered,
             filename=file.path(spatialOutDir,'water_buffered.tif'),
             overwrite=T)
 
-saveRDS(water_buffered,file='tmp/water_buffered')
+saveRDS(water_buffered,file='tmp/water_buffered.rds')
 
 water_buffered<-readRDS(file='tmp/water_buffered')
 
+
+#Source raster:
+water_source<-subst(water_buffered,from=c(4,3,2,1),to=c(0,0.75,0.5,1),others=NA)
+
+
+writeRaster(water_source,
+            filename=file.path(spatialOutDir,'water_source.tif'),
+            overwrite=T)
+
+saveRDS(water_source,file='tmp/water_source.rds')
+
+
 }else{
 
-  water_buffered<-readRDS(file='tmp/water_buffered')
-
+  water_buffered<-readRDS(file='tmp/water_buffered.rds')
+  water_source<-readRDS(file='tmp/water_source.rds')
 
 }
 

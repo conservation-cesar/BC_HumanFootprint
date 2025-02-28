@@ -95,21 +95,36 @@ if (!file.exists(roads_file)) {
   template[[1]][] = NA
   roadsSR<-stars::st_rasterize(roads_sf[,"RoadUse"], template)
   write_stars(roadsSR,dsn=file.path(spatialOutDir,'roadsSR.tif'))
-} else {
+
+  ###removing some files to avoid memory issues:
+  remove(roads_sf_petro)
+  remove(roads_sf)
+  remove(roads_sf_in)
+  remove(roads_sf_1)
+
+
+  } else {
   #Read in raster roads with values 0-none, 1-high use, 2-moderate use, 3-low use)
-  roadsR<-raster(file.path(spatialOutDir,'roadsSR.tif'))
+  roadsR<-terra::rast(file.path(spatialOutDir,'roadsSR.tif'))
 }
 
 #Assign road weights for example: H-400, m-100, l-3 - based on values in the disturbance.xlsx spreadsheet in data directory
 #Example in data directory Archive folder
-LinearDisturbance_LUT<-data.frame(read_excel(file.path(DataDir,paste('LinearDisturbance.xlsx',sep='')),sheet='LinearDisturbance')) %>%
-  dplyr::select(ID,Resistance,SourceWt,BinaryHF)
-LinearDisturbance_LUT<-data.frame(rdCode=c(1,2,3,0),Resistance=c(400,100,3,0),BinaryHF=c(1,1,1,0))
 
 
-####Buffering Roads####
+LinearDisturbance_LUT<-data.frame(rdCode=c(1,2,3,0),
+                                  Resistance=c(400,100,3,0),
+                                  SourceWt=c(0,0,0.75,0),
+                                  BinaryHF=c(1,1,1,0))
+
+
+####Buffering Roads and adding resistance wrights####
 #get each use level in a different raster:
-roadsR_l<-list()
+roads_buf_file <- file.path(spatialOutDir,"roadsSR_buffered.tif")
+
+if (!file.exists(roads_buf_file)) {
+
+  roadsR_l<-list()
 for(i in 1:3){
   roadsR_l[[i]]<-terra::mask(roadsR,
             roadsR,
@@ -122,101 +137,60 @@ for(i in 1:3){
 roadsR_l_h<-buffer(roadsR_l[[1]],width=500,background=NA)#high use
 roadsR_l_m1<-buffer(roadsR_l[[2]],width=500,background=NA)#moderate
 roadsR_l_m2<-buffer(roadsR_l[[2]],width=100,background=NA)#moderate
-roadsR_l_l<-buffer(roadsR_l[[3]],width=50,background=NA)#low use
+roadsR_l_l<-buffer(roadsR_l[[3]],width=100,background=NA)#low use
 
 
+#reclasfy buffers:
+#buffers have 50% of the resistance of their origin raster
+#(e.g., 500m buffer of high use roads has 50% of the resitance of the actual road)
+#for medium roads, 500m buffer has 50% and 100m has 75%
+
+roadsR_l_h_bf<-classify(roadsR_l_h,matrix(data=c(0,LinearDisturbance_LUT %>% filter(rdCode==1) %>% pull(Resistance),
+                                  1,LinearDisturbance_LUT %>% filter(rdCode==1) %>% pull(Resistance)*.5),byrow=T,ncol=2))
+
+roadsR_l_m1_bf<-classify(roadsR_l_m1,matrix(data=c(0,LinearDisturbance_LUT %>% filter(rdCode==2) %>% pull(Resistance),
+                                  1,LinearDisturbance_LUT %>% filter(rdCode==2) %>% pull(Resistance)*.5),byrow=T,ncol=2))
+
+roadsR_l_m2_bf<-classify(roadsR_l_m2,matrix(data=c(0,LinearDisturbance_LUT %>% filter(rdCode==2) %>% pull(Resistance),
+                                  1,LinearDisturbance_LUT %>% filter(rdCode==2) %>% pull(Resistance)*.75),byrow=T,ncol=2))
+
+roadsR_l_l_bf<-classify(roadsR_l_l,matrix(data=c(0,LinearDisturbance_LUT %>% filter(rdCode==3) %>% pull(Resistance),
+                                  1,LinearDisturbance_LUT %>% filter(rdCode==3) %>% pull(Resistance)*.5),byrow=T,ncol=2))
+
+roadsR_buffered<-mosaic(
+            roadsR_l_h_bf,
+            roadsR_l_m1_bf,
+            roadsR_l_m2_bf,
+            roadsR_l_l_bf,
+            fun='max')
 
 
-roads_WP_file <- file.path(spatialOutDir,"roads_WP.tif")
-if (!file.exists(roads_WP_file)) {
+writeRaster(roadsR_buffered,file.path(spatialOutDir,"roadsSR_buffered.tif"))
 
-  #By Prov
-  roads_WP<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='Resistance')
-  writeRaster(roads_WP, filename=file.path(spatialOutDir,'roads_WP'), format="GTiff", overwrite=TRUE)
-  #Do Binary version
-  roadsB_W<-subs(roadsR, LinearDisturbance_LUT, by='rdCode',which='BinaryHF')
-  writeRaster(roadsB_W, filename=file.path(spatialOutDir,'roadsB_W'), format="GTiff", overwrite=TRUE)
+roadsR_buffered<-rast(file.path(spatialOutDir,"roadsSR_buffered.tif"))
+saveRDS(roadsR_buffered,file.path(spatialOutDir,"roadsSR_buffered.rds"))
+
 }else{
-  roads_WP<-raster(file.path(spatialOutDir,'roads_WP.tif'))
+  roadsR_buffered<-rast(file.path(spatialOutDir,"roadsSR_buffered.tif"))
+
 }
-#########
-#Do similar analysis but split into 3 rasters, High(1), Med(2), Low(3)
-#Generate buffers for each 500m for 1 100m annd 500m for 2 and 50m for 3
-#Use gpkg created above
-roads_clean<-st_read(file.path(spatialOutDir,"roads_clean.gpkg"))
 
-roadsH<-roads_clean %>%
-  #st_drop_geometry() %>%
-  #st_line_merge() %>%
-  dplyr::filter(RoadUse==1) %>%
-  mutate(RastID=1)
 
-roadsH1<- roadsH %>%
-  st_buffer(dist=500) %>%
-  st_union()
+###Roads - source surface####
 
-write_sf(roadsH1, file.path(spatialOutDir,"roadsH1.gpkg"), overwrite=TRUE)
-roadsH1<-st_read(file.path(spatialOutDir,"roadsH1.gpkg")) %>%
-  mutate(RastVal=1)
-roadsHR<-roadsH1 %>%
-  fasterize(BCr,field="RastVal")
 
-writeRaster(roadsHR, filename=file.path(spatialOutDir,'roadsHR'), format="GTiff", overwrite=TRUE)
+roadsB_W_file<-file.path(spatialOutDir,"roadsB_W.tif")
+if (!file.exists(roadsB_W_file)) {
 
-###Medium Roads at 100 and 500
-roadsM<-roads_clean %>%
-  #st_drop_geometry() %>%
-  #st_line_merge() %>%
-  dplyr::filter(RoadUse==2) %>%
-  mutate(RastID=1)
+roadsB_W1<-subst(roadsR, c(1,2,3,0), c(NA,NA,1,NA))
+roadsB_W_b<-buffer(roadsB_W1,width=100,background=NA)
+roadsB_W<-subst(roadsB_W_b,c(0,1),c(0.75,.5))
 
-roadsM1<- roadsM %>%
-  st_buffer(dist=100) %>%
-  st_union()
+writeRaster(roadsB_W, filename=file.path(spatialOutDir,'roadsB_W.tif'), overwrite=TRUE)
+}else{
+  roadsB_W<-rast(file.path(spatialOutDir,"roadsB_W.tif"))
+}
 
-write_sf(roadsM1, file.path(spatialOutDir,"roadsM1.gpkg"), overwrite=TRUE)
-roadsM1<-st_read(file.path(spatialOutDir,"roadsM1.gpkg")) %>%
-  mutate(RastVal=1)
 
-roadsMR<-roadsM1 %>%
-  fasterize(BCr,field="RastVal")
 
-writeRaster(roadsMR, filename=file.path(spatialOutDir,'roadsMR'), format="GTiff", overwrite=TRUE)
 
-###Do medium use at 500
-roadsM1_500<- roadsM %>%
-  st_buffer(dist=500) %>%
-  st_union()
-
-write_sf(roadsM1_500, file.path(spatialOutDir,"roadsM1_500.gpkg"), overwrite=TRUE)
-roadsM1_500<-st_read(file.path(spatialOutDir,"roadsM1_500.gpkg")) %>%
-  mutate(RastVal=1)
-
-roadsMR500<-roadsM1_500 %>%
-  fasterize(BCr,field="RastVal")
-
-writeRaster(roadsMR500, filename=file.path(spatialOutDir,'roadsMR500'), format="GTiff", overwrite=TRUE)
-
-#Set Low roads - use previously processed Stars tif with 3 road use classes
-roadsSR<-raster(file.path(spatialOutDir,'roadsSR.tif'))
-roadsLR<-roadsSR
-#Use only Low roads
-roadsLR[roadsLR<3]<-NA
-roadsLR[roadsLR==3]<-1
-writeRaster(roadsLR, filename=file.path(spatialOutDir,'roadsLR'), format="GTiff", overwrite=TRUE)
-
-##############
-AOI_rast<-terra::rast(file.path(spatialOutDir,"BCr.tif"))
-
-roadsR_AOI<-terra::rast(file.path(spatialOutDir,"roadsSR.tif")) %>%
-  #crop(AOI) %>%
-  terra::mask(AOI_rast)
-
-#Clip by AOI
-# roadsR_AOI<-roadsR %>%
-#   mask(AOI) %>%
-#   crop(AOI)
-#roads_LUT<-data.frame(rdCode=c(1,2,3),Resistance=c(400,100,3))
-roads_W<-terra::subst(roadsR_AOI, from=LinearDisturbance_LUT$rdCode,
-                      to=LinearDisturbance_LUT$Resistance,
-                      filename=file.path(spatialOutDir,'roads_W.tif'), overwrite=TRUE)
