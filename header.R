@@ -28,9 +28,12 @@ RoadsDir<-file.path(SpatialDir,'roads')
 DisturbDir<-file.path(SpatialDir,'disturb')
 DataDir <- 'data'
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #Change this to a local path for storing footprint data as input to conservation connectivity model
 CorrDir<- file.path('/Users/darkbabine/Sync/_dev/Biodiversity/BC_ConservationConnectivity/data/spatial')
 =======
+=======
+>>>>>>> Stashed changes
 ######IMPORTANT#####
 ###Change this to a local path for storing footprint data as input to conservation connectivity model
 
@@ -38,6 +41,9 @@ CorrDir<- file.path('C:/Users/cestevo/Documents/GitHub/BC_ConservationConnectivi
 #folder for landcover data around the province for boundary connectivity
 CorrDir_LC<-file.path('C:/Users/cestevo/Documents/GitHub/BC_ConservationConnectivity/out/spatial/ConnData/lc')
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 #Local directory of GIS files such as HillShade for plotting
 GISLibrary<- file.path('/Users/darkbabine/ProjectLibrary/Library/GISFiles/BC')
@@ -56,6 +62,9 @@ dir.create(file.path(spatialOutDir), showWarnings = FALSE)
 =======
 dir.create(file.path(SpatialDir), showWarnings = FALSE)
 dir.create(file.path(CorrDir_LC), showWarnings = FALSE)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 

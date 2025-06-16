@@ -101,6 +101,9 @@ if (!file.exists(source_WP_file)) {
 
 source_WP<-subst(rast(file.path(spatialOutDir,'disturbance_sfR.tif')), AreaDisturbance_LUT$ID,AreaDisturbance_LUT$SourceWt)
 writeRaster(source_WP, filename=file.path(spatialOutDir,'source_WP.tif'), overwrite=TRUE)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 ##################
