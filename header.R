@@ -30,9 +30,12 @@ DataDir <- 'data'
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #Change this to a local path for storing footprint data as input to conservation connectivity model
 CorrDir<- file.path('/Users/darkbabine/Sync/_dev/Biodiversity/BC_ConservationConnectivity/data/spatial')
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -46,6 +49,9 @@ CorrDir_LC<-file.path('C:/Users/cestevo/Documents/GitHub/BC_ConservationConnecti
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -70,6 +76,9 @@ dir.create(file.path(SpatialDir), showWarnings = FALSE)
 dir.create(file.path(CorrDir_LC), showWarnings = FALSE)
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

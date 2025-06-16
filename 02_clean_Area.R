@@ -103,6 +103,9 @@ source_WP<-subst(rast(file.path(spatialOutDir,'disturbance_sfR.tif')), AreaDistu
 writeRaster(source_WP, filename=file.path(spatialOutDir,'source_WP.tif'), overwrite=TRUE)
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

@@ -96,10 +96,13 @@ if (!file.exists(roads_file)) {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   roadsSR<-stars::st_rasterize(roads_sf[,"RoadUse"], template)
   write_stars(roadsSR,dsn=file.path(spatialOutDir,'roadsSR.tif'))
 } else {
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -148,10 +151,13 @@ roadsH<-roads_clean %>%
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 roadsH1<- roadsH %>%
   st_buffer(dist=500) %>%
   st_union()
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -206,6 +212,7 @@ writeRaster(roadsMR500, filename=file.path(spatialOutDir,'roadsMR500'), format="
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #Set Low roads - use previously processed Stars tif with 3 road use classes
 roadsSR<-raster(file.path(spatialOutDir,'roadsSR.tif'))
 roadsLR<-roadsSR
@@ -214,6 +221,8 @@ roadsLR[roadsLR<3]<-NA
 roadsLR[roadsLR==3]<-1
 writeRaster(roadsLR, filename=file.path(spatialOutDir,'roadsLR'), format="GTiff", overwrite=TRUE)
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
